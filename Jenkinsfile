@@ -2,8 +2,8 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_HUB_CREDENTIALS = 'the credentials for docker hub'   // Your global Docker Hub credentials ID in Jenkins
-        IMAGE_NAME = 'mohamedazizselmi/student-management'  // Your Docker Hub username/repo
+        DOCKER_HUB_CREDENTIALS = 'the credentials for docker hub'   
+        IMAGE_NAME = 'mohamedazizselmi/student-management'  
     }
 
     stages {
@@ -14,7 +14,7 @@ pipeline {
                 git(
                     branch: 'main',
                     url: 'https://github.com/fourth-git-copilot-account/MohamedAzizSelmi-4SAE4.git',
-                    credentialsId: 'd53472d1-7c06-4517-893b-219f23f95bc3'  // Replace with your GitHub credentials ID in Jenkins
+                    credentialsId: 'd53472d1-7c06-4517-893b-219f23f95bc3'  
                 )
             }
         }
@@ -51,9 +51,9 @@ pipeline {
                 dir('student-management') {
                     echo "Connexion et push vers Docker Hub..."
                     withCredentials([usernamePassword(
-                        credentialsId: "${DOCKER_HUB_CREDENTIALS}",
-                        usernameVariable: 'DOCKER_USER',
-                        passwordVariable: 'DOCKER_PASS'
+                        credentialsId: "${the credentials for docker hub}",
+                        usernameVariable: 'mohamedazizselmi',
+                        passwordVariable: 'joncina85738573'
                     )]) {
                         sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
                         sh "docker push ${IMAGE_NAME}:latest"
