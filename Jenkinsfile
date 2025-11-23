@@ -51,7 +51,7 @@ pipeline {
                 dir('student-management') {
                     echo "Connexion et push vers Docker Hub..."
                     withCredentials([usernamePassword(
-                        credentialsId: "${the credentials for docker hub}",
+                        credentialsId: "${DOCKER_HUB_CREDENTIALS}",
                         usernameVariable: 'DOCKER_USER',
                         passwordVariable: 'DOCKER_PASS'
                     )]) {
