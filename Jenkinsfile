@@ -2,39 +2,45 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_HUB_CREDENTIALS = 'the credentials for docker hub'  // Your Docker Hub global credential ID in Jenkins
-        IMAGE_NAME = 'mohamedazizselmi/student-management'
+        DOCKER_HUB_CREDENTIALS = 'the credentials for docker hub'   // Your global Docker Hub credentials ID in Jenkins
+        IMAGE_NAME = 'mohamedazizselmi/student-management'  // Your Docker Hub username/repo
     }
 
     stages {
 
-        stage('Hello World') {
+        stage('Checkout code') {
             steps {
-                echo 'Hello world!'
+                echo "Téléchargement du code..."
+                git(
+                    branch: 'main',
+                    url: 'https://github.com/fourth-git-copilot-account/MohamedAzizSelmi-4SAE4.git',
+                    credentialsId: 'd53472d1-7c06-4517-893b-219f23f95bc3'  // Replace with your GitHub credentials ID in Jenkins
+                )
             }
         }
 
-        stage('Maven Version') {
+        stage('Maven Clean') {
             steps {
-                dir('student-management') {  // folder with pom.xml
-                    sh 'mvn --version'
+                dir('student-management') {
+                    echo "Nettoyage du projet Maven..."
+                    sh "mvn clean -DskipTests"
                 }
             }
         }
 
-        stage('Build Project') {
+        stage('Maven Package') {
             steps {
-                dir('student-management') {  // folder with pom.xml and Dockerfile
-                    echo "Building Maven project..."
-                    sh 'mvn clean install -DskipTests'
+                dir('student-management') {
+                    echo "Build Maven (package)..."
+                    sh "mvn install -DskipTests"
                 }
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                dir('student-management') {  // Dockerfile is here
-                    echo "Building Docker image..."
+                dir('student-management') {
+                    echo "Construction de l’image Docker..."
                     sh "docker build -t ${IMAGE_NAME}:latest ."
                 }
             }
@@ -43,7 +49,7 @@ pipeline {
         stage('Push Docker Image') {
             steps {
                 dir('student-management') {
-                    echo "Logging in and pushing Docker image..."
+                    echo "Connexion et push vers Docker Hub..."
                     withCredentials([usernamePassword(
                         credentialsId: "${DOCKER_HUB_CREDENTIALS}",
                         usernameVariable: 'DOCKER_USER',
