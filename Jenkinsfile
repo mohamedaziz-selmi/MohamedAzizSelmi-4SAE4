@@ -62,5 +62,12 @@ pipeline {
             }
         }
 
+        stage('Done') {
+    steps {
+        echo "Pipeline completed"
+    }
+}
+
+
     }
 }
