@@ -19,7 +19,7 @@ spec:
         - containerPort: 8089
         env:
         - name: SPRING_DATASOURCE_URL
-          value: jdbc:mysql://mysql-service:3306/tpfoyerlast
+          value: jdbc:mysql://mysql-service:3306/student_management_db
         - name: SPRING_DATASOURCE_USERNAME
           valueFrom:
             secretKeyRef:
