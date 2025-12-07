@@ -8,5 +8,5 @@ spec:
     app: springboot
   ports:
     - port: 8080         # Pod port
-      targetPort: 8080   # Container port
+      targetPort: 8089   # Container port
       nodePort: 30007    # Port on your Windows host
