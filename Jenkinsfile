@@ -39,14 +39,14 @@ pipeline {
         }
 
         stage('SonarQube Analysis') {
-            steps {
-                dir('student-management') {
-                    echo "Analyse SonarQube..."
-                    mvn sonar:sonar -Dsonar.projectKey=student-management -Dsonar.projectName=student-management -Dsonar.host.url=http://127.0.0.1:9000 -Dsonar.token=$SONAR_TOKEN -DskipTests -Dsonar.java.binaries=target/classes
-
-                }
-            }
+    steps {
+        dir('student-management') {
+            echo "Analyse SonarQube..."
+            sh "mvn sonar:sonar -Dsonar.projectKey=student-management -Dsonar.projectName=student-management -Dsonar.host.url=http://127.0.0.1:9000 -Dsonar.token=$SONAR_TOKEN -DskipTests -Dsonar.java.binaries=target/classes"
         }
+    }
+}
+
 
         stage('Build Docker Image') {
             steps {
