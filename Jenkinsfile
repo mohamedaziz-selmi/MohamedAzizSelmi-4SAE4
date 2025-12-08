@@ -2,19 +2,18 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_HUB_CREDENTIALS = 'the credentials for docker hub'   
-        IMAGE_NAME = 'mohamedazizselmi/student-management'  
+        DOCKER_HUB_CREDENTIALS = 'the credentials for docker hub'
+        IMAGE_NAME = 'mohamedazizselmi/student-management'
     }
 
     stages {
-
         stage('Checkout code') {
             steps {
                 echo "Téléchargement du code..."
                 git(
                     branch: 'main',
                     url: 'https://github.com/fourth-git-copilot-account/MohamedAzizSelmi-4SAE4.git',
-                    credentialsId: 'd53472d1-7c06-4517-893b-219f23f95bc3'  
+                    credentialsId: 'd53472d1-7c06-4517-893b-219f23f95bc3'
                 )
             }
         }
@@ -62,26 +61,19 @@ pipeline {
             }
         }
 
-        stage('Done') {
-    steps {
-        echo "Pipeline completed"
-    }
-}
-
-
-      stage('Deploy to Kubernetes') {
-    steps {
-        withCredentials([file(credentialsId: 'KUBECONFIG_CREDENTIAL', variable: 'KUBECONFIG')]) {
-            sh 'kubectl apply -f k8s/mysql-deployment.yaml'
-            sh 'kubectl apply -f k8s/springboot-deployment.yaml'
+        stage('Deploy to Kubernetes') {
+            steps {
+                withCredentials([file(credentialsId: 'KUBECONFIG_CREDENTIAL', variable: 'KUBECONFIG')]) {
+                    sh 'kubectl apply -f k8s/mysql-deployment.yaml'
+                    sh 'kubectl apply -f k8s/springboot-deployment.yaml'
+                }
+            }
         }
-    }
-}
 
-}
-
-
-
-
+        stage('Done') {
+            steps {
+                echo "Pipeline completed"
+            }
+        }
     }
 }
