@@ -69,5 +69,15 @@ pipeline {
 }
 
 
+        stage('Deploy to Kubernetes') {
+    steps {
+        echo "Déploiement sur Kubernetes..."
+        sh 'kubectl apply -f k8s/mysql-deployment.yaml'
+        sh 'kubectl apply -f k8s/springboot-deployment.yaml'
+    }
+}
+
+
+
     }
 }
