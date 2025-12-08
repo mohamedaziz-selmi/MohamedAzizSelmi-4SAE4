@@ -76,11 +76,12 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 withCredentials([file(credentialsId: 'KUBECONFIG_CREDENTIAL', variable: 'KUBECONFIG')]) {
-                    echo "Déploiement sur Kubernetes..."
-                    sh 'kubectl apply -f student-management/k8s/mysql-deployment.yaml --validate=false'
-                    sh 'kubectl apply -f student-management/k8s/springboot-deployment.yaml --validate=false'
-                    sh 'kubectl apply -f student-management/k8s/sonarqube-deployment.yaml --validate=false'
-                }
+    sh 'kubectl config use-context minikube'
+    sh 'kubectl apply -f student-management/k8s/mysql-deployment.yaml --validate=false'
+    sh 'kubectl apply -f student-management/k8s/springboot-deployment.yaml --validate=false'
+    sh 'kubectl apply -f student-management/k8s/sonarqube-deployment.yaml --validate=false'
+}
+
             }
         }
 
