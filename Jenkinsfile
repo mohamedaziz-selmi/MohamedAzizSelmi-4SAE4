@@ -4,8 +4,8 @@ pipeline {
     environment {
         DOCKER_HUB_CREDENTIALS = 'the credentials for docker hub'
         IMAGE_NAME = 'mohamedazizselmi/student-management'
-        SONAR_TOKEN = credentials('sonar-token')  // keep this ID, you need to create it in Jenkins as secret text
-        SONAR_URL = 'http://192.168.49.2:31001'      // replace with your local SonarQube URL if different
+        SONAR_TOKEN = credentials('sonar-token')
+        SONAR_URL = 'http://192.168.49.2:31001' // Minikube NodePort for SonarQube
     }
 
     stages {
@@ -42,7 +42,15 @@ pipeline {
     steps {
         dir('student-management') {
             echo "Analyse SonarQube..."
-            sh "mvn sonar:sonar -Dsonar.projectKey=student-management -Dsonar.projectName=student-management -Dsonar.host.url=http://127.0.0.1:9000 -Dsonar.token=$SONAR_TOKEN -DskipTests -Dsonar.java.binaries=target/classes"
+            withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+                sh """mvn sonar:sonar \
+                    -Dsonar.projectKey=student-management \
+                    -Dsonar.projectName=student-management \
+                    -Dsonar.host.url=${SONAR_URL} \
+                    -Dsonar.token=\$SONAR_TOKEN \
+                    -DskipTests \
+                    -Dsonar.java.binaries=target/classes"""
+            }
         }
     }
 }
@@ -76,12 +84,20 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 withCredentials([file(credentialsId: 'KUBECONFIG_CREDENTIAL', variable: 'KUBECONFIG')]) {
-    sh 'kubectl config use-context minikube'
-    sh 'kubectl apply -f student-management/k8s/mysql-deployment.yaml --validate=false'
-    sh 'kubectl apply -f student-management/k8s/springboot-deployment.yaml --validate=false'
-    sh 'kubectl apply -f student-management/k8s/sonarqube-deployment.yaml --validate=false'
-}
+                    echo "Déploiement sur Kubernetes..."
+                    // Force kubectl to use the right context
+                    sh 'kubectl config use-context minikube'
 
+                    // Apply all deployments
+                    sh 'kubectl apply -f student-management/k8s/mysql-deployment.yaml --validate=false'
+                    sh 'kubectl apply -f student-management/k8s/springboot-deployment.yaml --validate=false'
+                    sh 'kubectl apply -f student-management/k8s/sonarqube-deployment.yaml --validate=false'
+
+                    // Optional: wait for pods to be ready
+                    sh 'kubectl wait --for=condition=ready pod -l app=mysql --timeout=120s'
+                    sh 'kubectl wait --for=condition=ready pod -l app=springboot --timeout=120s'
+                    sh 'kubectl wait --for=condition=ready pod -l app=sonarqube --timeout=120s'
+                }
             }
         }
 
