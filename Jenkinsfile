@@ -25,6 +25,7 @@ pipeline {
                 dir('student-management') {
                     echo "Nettoyage du projet Maven..."
                     sh "mvn clean -DskipTests"
+                    
                 }
             }
         }
@@ -40,7 +41,9 @@ pipeline {
                         -Dsonar.host.url=${SONAR_HOST_URL} \
                         -Dsonar.token=${SONAR_TOKEN} \
                         -DskipTests
-                    """
+                        -Dsonar.java.binaries=target/classes"
+
+                
                 }
             }
         }
