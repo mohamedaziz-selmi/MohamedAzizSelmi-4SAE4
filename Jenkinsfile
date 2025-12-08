@@ -2,8 +2,10 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_HUB_CREDENTIALS = 'the credentials for docker hub'
+        DOCKER_HUB_CREDENTIALS = 'docker-hub-creds'       // Your Jenkins Docker Hub credential ID
         IMAGE_NAME = 'mohamedazizselmi/student-management'
+        SONAR_HOST_URL = 'http://127.0.0.1:44209'         // SonarQube URL reachable from Jenkins
+        SONAR_TOKEN = credentials('sonar-token')          // Jenkins credential storing your token
     }
 
     stages {
@@ -23,6 +25,22 @@ pipeline {
                 dir('student-management') {
                     echo "Nettoyage du projet Maven..."
                     sh "mvn clean -DskipTests"
+                }
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                dir('student-management') {
+                    echo "Exécution de l'analyse SonarQube..."
+                    sh """
+                        mvn sonar:sonar \
+                        -Dsonar.projectKey=student-management \
+                        -Dsonar.projectName='student-management' \
+                        -Dsonar.host.url=${SONAR_HOST_URL} \
+                        -Dsonar.token=${SONAR_TOKEN} \
+                        -DskipTests
+                    """
                 }
             }
         }
@@ -62,18 +80,18 @@ pipeline {
         }
 
         stage('Deploy to Kubernetes') {
-    steps {
-        withCredentials([file(credentialsId: 'KUBECONFIG_CREDENTIAL', variable: 'KUBECONFIG')]) {
-            sh 'kubectl apply -f student-management/k8s/mysql-deployment.yaml'
-            sh 'kubectl apply -f student-management/k8s/springboot-deployment.yaml'
+            steps {
+                withCredentials([file(credentialsId: 'KUBECONFIG_CREDENTIAL', variable: 'KUBECONFIG')]) {
+                    sh 'kubectl apply -f student-management/k8s/mysql-deployment.yaml'
+                    sh 'kubectl apply -f student-management/k8s/springboot-deployment.yaml'
+                    sh 'kubectl apply -f student-management/k8s/sonarqube-deployment.yaml'
+                }
+            }
         }
-    }
-}
-
 
         stage('Done') {
             steps {
-                echo "Pipeline completed"
+                echo "Pipeline completed successfully!"
             }
         }
     }
