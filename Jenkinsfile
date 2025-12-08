@@ -4,11 +4,14 @@ pipeline {
     environment {
         DOCKER_HUB_CREDENTIALS = 'docker-hub-creds'
         IMAGE_NAME = 'mohamedazizselmi/student-management'
-        SONAR_URL = 'http://127.0.0.1:9000'  // Replace with your SonarQube NodePort if needed
+        SONAR_TOKEN = credentials('sonar-token')
         KUBE_WAIT_TIMEOUT = '180s'
+        MAX_RETRIES = 3
+        RETRY_DELAY = 10
     }
 
     stages {
+
         stage('Checkout code') {
             steps {
                 echo "Downloading code..."
@@ -27,11 +30,24 @@ pipeline {
             }
         }
 
+        stage('Detect Services') {
+            steps {
+                script {
+                    // Automatically detect Minikube IP
+                    MINIKUBE_IP = sh(script: "minikube ip", returnStdout: true).trim()
+                    SONAR_URL = "http://${MINIKUBE_IP}:31001"
+                    echo "Detected SonarQube URL: ${SONAR_URL}"
+                }
+            }
+        }
+
         stage('SonarQube Analysis') {
             steps {
                 dir('student-management') {
                     echo "Checking SonarQube connectivity..."
-                    sh "curl --fail -I ${SONAR_URL}"
+                    retry(env.MAX_RETRIES) {
+                        sh "curl --fail -I ${SONAR_URL} || (echo 'SonarQube unreachable, retrying...' && sleep ${RETRY_DELAY} && false)"
+                    }
 
                     echo "Running SonarQube analysis..."
                     withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
@@ -62,12 +78,16 @@ pipeline {
             steps {
                 dir('student-management') {
                     echo "Checking Docker Hub connectivity..."
-                    sh 'curl --fail https://registry-1.docker.io/v2/'
+                    retry(env.MAX_RETRIES) {
+                        sh "curl --fail https://registry-1.docker.io/v2/ || (echo 'Docker Hub unreachable, retrying...' && sleep ${RETRY_DELAY} && false)"
+                    }
 
-                    echo "Logging in and pushing to Docker Hub..."
+                    echo "Logging in and pushing Docker image..."
                     withCredentials([usernamePassword(credentialsId: "${DOCKER_HUB_CREDENTIALS}", usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                        sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
-                        sh 'docker push ${IMAGE_NAME}:latest'
+                        sh '''
+                        echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
+                        docker push ${IMAGE_NAME}:latest
+                        '''
                     }
                 }
             }
