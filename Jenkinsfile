@@ -5,7 +5,7 @@ pipeline {
         DOCKER_HUB_CREDENTIALS = 'the credentials for docker hub'
         IMAGE_NAME = 'mohamedazizselmi/student-management'
         SONAR_TOKEN = credentials('sonar-token')
-        SONAR_URL = 'http://192.168.49.2:31001' // Minikube NodePort for SonarQube
+    SONAR_URL = 'http://127.0.0.1:9000'
     }
 
     stages {
