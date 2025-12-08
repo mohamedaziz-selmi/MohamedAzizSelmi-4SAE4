@@ -5,7 +5,7 @@ pipeline {
         DOCKER_HUB_CREDENTIALS = 'the credentials for docker hub'
         IMAGE_NAME = 'mohamedazizselmi/student-management'
         SONAR_TOKEN = credentials('sonar-token')  // keep this ID, you need to create it in Jenkins as secret text
-        SONAR_URL = 'http://127.0.0.1:44209'      // replace with your local SonarQube URL if different
+        SONAR_URL = 'http://192.168.49.2:31001'      // replace with your local SonarQube URL if different
     }
 
     stages {
