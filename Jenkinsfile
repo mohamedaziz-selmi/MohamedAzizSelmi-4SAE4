@@ -69,13 +69,15 @@ pipeline {
 }
 
 
-       stage('Deploy to Kubernetes') {
+      stage('Deploy to Kubernetes') {
     steps {
         withCredentials([file(credentialsId: 'KUBECONFIG_CREDENTIAL', variable: 'KUBECONFIG')]) {
             sh 'kubectl apply -f k8s/mysql-deployment.yaml'
             sh 'kubectl apply -f k8s/springboot-deployment.yaml'
         }
     }
+}
+
 }
 
 
