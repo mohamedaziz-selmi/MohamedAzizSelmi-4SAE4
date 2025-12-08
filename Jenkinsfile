@@ -4,14 +4,10 @@ pipeline {
     environment {
         DOCKER_HUB_CREDENTIALS = 'docker-hub-creds'
         IMAGE_NAME = 'mohamedazizselmi/student-management'
-        SONAR_TOKEN = credentials('sonar-token')
-        KUBE_WAIT_TIMEOUT = '180s'
-        MAX_RETRIES = 3
-        RETRY_DELAY = 10
+        SONAR_URL = 'http://192.168.49.2:31001' // SonarQube NodePort
     }
 
     stages {
-
         stage('Checkout code') {
             steps {
                 echo "Downloading code..."
@@ -30,25 +26,9 @@ pipeline {
             }
         }
 
-        stage('Detect Services') {
-            steps {
-                script {
-                    // Automatically detect Minikube IP
-                    MINIKUBE_IP = sh(script: "minikube ip", returnStdout: true).trim()
-                    SONAR_URL = "http://${MINIKUBE_IP}:31001"
-                    echo "Detected SonarQube URL: ${SONAR_URL}"
-                }
-            }
-        }
-
         stage('SonarQube Analysis') {
             steps {
                 dir('student-management') {
-                    echo "Checking SonarQube connectivity..."
-                    retry(env.MAX_RETRIES) {
-                        sh "curl --fail -I ${SONAR_URL} || (echo 'SonarQube unreachable, retrying...' && sleep ${RETRY_DELAY} && false)"
-                    }
-
                     echo "Running SonarQube analysis..."
                     withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
                         sh """
@@ -77,17 +57,10 @@ pipeline {
         stage('Push Docker Image') {
             steps {
                 dir('student-management') {
-                    echo "Checking Docker Hub connectivity..."
-                    retry(env.MAX_RETRIES) {
-                        sh "curl --fail https://registry-1.docker.io/v2/ || (echo 'Docker Hub unreachable, retrying...' && sleep ${RETRY_DELAY} && false)"
-                    }
-
-                    echo "Logging in and pushing Docker image..."
+                    echo "Logging in and pushing to Docker Hub..."
                     withCredentials([usernamePassword(credentialsId: "${DOCKER_HUB_CREDENTIALS}", usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                        sh '''
-                        echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
-                        docker push ${IMAGE_NAME}:latest
-                        '''
+                        sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
+                        sh 'docker push ${IMAGE_NAME}:latest'
                     }
                 }
             }
@@ -98,17 +71,16 @@ pipeline {
                 withCredentials([file(credentialsId: 'KUBECONFIG_CREDENTIAL', variable: 'KUBECONFIG')]) {
                     echo "Deploying to Kubernetes..."
                     sh 'kubectl config use-context minikube'
-                    sh 'kubectl get nodes'
 
-                    echo "Applying deployments..."
+                    // Apply all deployments
                     sh 'kubectl apply -f student-management/k8s/mysql-deployment.yaml --validate=false'
                     sh 'kubectl apply -f student-management/k8s/springboot-deployment.yaml --validate=false'
                     sh 'kubectl apply -f student-management/k8s/sonarqube-deployment.yaml --validate=false'
 
-                    echo "Waiting for pods to be ready..."
-                    sh "kubectl wait --for=condition=ready pod -l app=mysql --timeout=${KUBE_WAIT_TIMEOUT}"
-                    sh "kubectl wait --for=condition=ready pod -l app=springboot --timeout=${KUBE_WAIT_TIMEOUT}"
-                    sh "kubectl wait --for=condition=ready pod -l app=sonarqube --timeout=${KUBE_WAIT_TIMEOUT}"
+                    // Wait for pods to be ready
+                    sh 'kubectl wait --for=condition=ready pod -l app=mysql --timeout=120s'
+                    sh 'kubectl wait --for=condition=ready pod -l app=springboot --timeout=120s'
+                    sh 'kubectl wait --for=condition=ready pod -l app=sonarqube --timeout=120s'
                 }
             }
         }
