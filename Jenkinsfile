@@ -42,13 +42,8 @@ pipeline {
             steps {
                 dir('student-management') {
                     echo "Analyse SonarQube..."
-                    sh "mvn sonar:sonar \
-                        -Dsonar.projectKey=student-management \
-                        -Dsonar.projectName='student-management' \
-                        -Dsonar.host.url=${SONAR_URL} \
-                        -Dsonar.token=${SONAR_TOKEN} \
-                        -DskipTests \
-                        -Dsonar.java.binaries=target/classes"
+                    mvn sonar:sonar -Dsonar.projectKey=student-management -Dsonar.projectName=student-management -Dsonar.host.url=http://127.0.0.1:9000 -Dsonar.token=$SONAR_TOKEN -DskipTests -Dsonar.java.binaries=target/classes
+
                 }
             }
         }
