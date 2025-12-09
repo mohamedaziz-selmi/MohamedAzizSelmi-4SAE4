@@ -33,13 +33,13 @@ pipeline {
                     withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
                         sh """
                         mvn sonar:sonar \
-                            -Dsonar.projectKey=student-management \
-                            -Dsonar.projectName=student-management \
-                            -Dsonar.host.url=${SONAR_URL} \
-                            -Dsonar.token=\$SONAR_TOKEN \
-                            -DskipTests \
-                            -Dsonar.java.binaries=target/classes
-                        """
+  -Dsonar.projectKey=student-management \
+  -Dsonar.projectName=student-management \
+  -Dsonar.host.url=http://host.docker.internal:9000 \
+  -Dsonar.token=$SONAR_TOKEN \
+  -DskipTests \
+  -Dsonar.java.binaries=target/classes
+
                     }
                 }
             }
