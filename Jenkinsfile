@@ -49,8 +49,10 @@ pipeline {
             steps {
                 dir('student-management') {
                     echo "Building Docker image..."
-                    sh 'docker build -t ${IMAGE_NAME}:latest .'
-                }
+sh """
+    echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
+    docker push ${IMAGE_NAME}:latest
+"""                }
             }
         }
 
