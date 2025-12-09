@@ -1,10 +1,11 @@
+i rewrote my jenkins file and heres how it looks like :
 pipeline {
     agent any
 
     environment {
         DOCKER_HUB_CREDENTIALS = 'docker-hub-creds'
         IMAGE_NAME = 'mohamedazizselmi/student-management'
-        SONAR_URL = 'http://192.168.49.2:31001' // SonarQube NodePort
+        SONAR_URL = 'http://127.0.0.1:9000' // or your SonarQube NodePort
     }
 
     stages {
@@ -66,24 +67,23 @@ pipeline {
             }
         }
 
-        stage('Deploy to Kubernetes') {
-            steps {
-                withCredentials([file(credentialsId: 'KUBECONFIG_CREDENTIAL', variable: 'KUBECONFIG')]) {
-                    echo "Deploying to Kubernetes..."
-                    sh 'kubectl config use-context minikube'
+       stage('Deploy to Kubernetes') {
+    steps {
+        withCredentials([file(credentialsId: 'KUBECONFIG_CREDENTIAL', variable: 'KUBECONFIG')]) {
+            echo "Déploiement sur Kubernetes..."
+            sh 'kubectl config use-context minikube'
 
-                    // Apply all deployments
-                    sh 'kubectl apply -f student-management/k8s/mysql-deployment.yaml --validate=false'
-                    sh 'kubectl apply -f student-management/k8s/springboot-deployment.yaml --validate=false'
-                    sh 'kubectl apply -f student-management/k8s/sonarqube-deployment.yaml --validate=false'
+            sh 'kubectl apply -f student-management/k8s/mysql-deployment.yaml --validate=false'
+            sh 'kubectl apply -f student-management/k8s/springboot-deployment.yaml --validate=false'
+            sh 'kubectl apply -f student-management/k8s/sonarqube-deployment.yaml --validate=false'
 
-                    // Wait for pods to be ready
-                    sh 'kubectl wait --for=condition=ready pod -l app=mysql --timeout=120s'
-                    sh 'kubectl wait --for=condition=ready pod -l app=springboot --timeout=120s'
-                    sh 'kubectl wait --for=condition=ready pod -l app=sonarqube --timeout=120s'
-                }
-            }
+            sh 'kubectl wait --for=condition=ready pod -l app=mysql --timeout=120s'
+            sh 'kubectl wait --for=condition=ready pod -l app=springboot --timeout=120s'
+            sh 'kubectl wait --for=condition=ready pod -l app=sonarqube --timeout=120s'
         }
+    }
+}
+
 
         stage('Done') {
             steps {
