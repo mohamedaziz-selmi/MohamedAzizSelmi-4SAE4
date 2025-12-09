@@ -5,7 +5,7 @@ pipeline {
     environment {
         DOCKER_HUB_CREDENTIALS = 'docker-hub-creds'
         IMAGE_NAME = 'mohamedazizselmi/student-management'
-        SONAR_URL = 'http://127.0.0.1:9000' // or your SonarQube NodePort
+        SONAR_URL = 'http://127.0.0.1:9000' 
     }
 
     stages {
