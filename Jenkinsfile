@@ -1,4 +1,3 @@
-i rewrote my jenkins file and heres how it looks like :
 pipeline {
     agent any
 
