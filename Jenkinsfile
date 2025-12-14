@@ -1,26 +1,18 @@
 pipeline {
     agent any
-
     environment {
         DOCKER_HUB_CREDENTIALS = 'docker-hub-creds'
         IMAGE_NAME = 'mohamedazizselmi/student-management'
-        // Replace <MINIKUBE_IP> and <NODE_PORT> with your actual values
-        SONAR_URL = "http://<MINIKUBE_IP>:<NODE_PORT>"
+        SONAR_URL = 'http://192.168.49.2:31666'
     }
-
     stages {
-
-        // 1️⃣ Checkout code
         stage('Checkout code') {
             steps {
                 echo "Downloading code..."
-                git branch: 'main',
-                    url: 'https://github.com/fourth-git-copilot-account/MohamedAzizSelmi-4SAE4.git',
-                    credentialsId: 'd53472d1-7c06-4517-893b-219f23f95bc3'
+                git branch: 'main', url: 'https://github.com/fourth-git-copilot-account/MohamedAzizSelmi-4SAE4.git', credentialsId: 'd53472d1-7c06-4517-893b-219f23f95bc3'
             }
         }
 
-        // 2️⃣ Maven clean & build
         stage('Maven Clean & Build') {
             steps {
                 dir('student-management') {
@@ -30,27 +22,25 @@ pipeline {
             }
         }
 
-        // 3️⃣ SonarQube Analysis
         stage('SonarQube Analysis') {
             steps {
                 dir('student-management') {
                     echo "Running SonarQube analysis..."
                     withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
                         sh """
-                            mvn sonar:sonar \\
-                                -Dsonar.projectKey=student-management \\
-                                -Dsonar.projectName=student-management \\
-                                -Dsonar.host.url=${SONAR_URL} \\
-                                -Dsonar.login=\$SONAR_TOKEN \\
-                                -DskipTests \\
-                                -Dsonar.java.binaries=target/classes
+                        mvn sonar:sonar \
+                            -Dsonar.projectKey=student-management \
+                            -Dsonar.projectName=student-management \
+                            -Dsonar.host.url=${SONAR_URL} \
+                            -Dsonar.login=\$SONAR_TOKEN \
+                            -DskipTests \
+                            -Dsonar.java.binaries=target/classes
                         """
                     }
                 }
             }
         }
 
-        // 4️⃣ Build Docker image
         stage('Build Docker Image') {
             steps {
                 dir('student-management') {
@@ -60,7 +50,6 @@ pipeline {
             }
         }
 
-        // 5️⃣ Push Docker image to Docker Hub
         stage('Push Docker Image') {
             steps {
                 dir('student-management') {
@@ -77,7 +66,6 @@ pipeline {
             }
         }
 
-        // 6️⃣ Deploy to Kubernetes
         stage('Deploy to Kubernetes') {
             steps {
                 withCredentials([file(credentialsId: 'KUBECONFIG_CREDENTIAL', variable: 'KUBECONFIG')]) {
@@ -93,12 +81,10 @@ pipeline {
             }
         }
 
-        // 7️⃣ Done
         stage('Done') {
             steps {
                 echo "Pipeline completed successfully!"
             }
         }
-
     }
 }
