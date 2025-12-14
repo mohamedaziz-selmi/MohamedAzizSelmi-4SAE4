@@ -15,7 +15,7 @@ pipeline {
                 git(
                     branch: 'main',
                     url: 'https://github.com/fourth-git-copilot-account/MohamedAzizSelmi-4SAE4.git',
-                    credentialsId: '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'
+                    credentialsId: 'github-pat'
                 )
             }
         }
