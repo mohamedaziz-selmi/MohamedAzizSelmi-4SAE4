@@ -66,20 +66,20 @@ pipeline {
             }
         }
 
-       stage('Deploy to Kubernetes') {
+      stage('Deploy to Kubernetes') {
     steps {
-        echo "Deploying to Kubernetes via WSL..."
         dir('student-management/k8s') {
-            bat '"C:\\Windows\\System32\\wsl.exe" kubectl config use-context minikube'
-            bat '"C:\\Windows\\System32\\wsl.exe" kubectl apply -f mysql-deployment.yaml --validate=false'
-            bat '"C:\\Windows\\System32\\wsl.exe" kubectl apply -f springboot-deployment.yaml --validate=false'
-            bat '"C:\\Windows\\System32\\wsl.exe" kubectl apply -f sonarqube-deployment.yaml --validate=false'
-            bat '"C:\\Windows\\System32\\wsl.exe" kubectl wait --for=condition=ready pod -l app=mysql --timeout=120s'
-            bat '"C:\\Windows\\System32\\wsl.exe" kubectl wait --for=condition=ready pod -l app=springboot --timeout=120s'
-            bat '"C:\\Windows\\System32\\wsl.exe" kubectl wait --for=condition=ready pod -l app=sonarqube --timeout=120s'
+            sh 'kubectl config use-context minikube'
+            sh 'kubectl apply -f mysql-deployment.yaml --validate=false'
+            sh 'kubectl apply -f springboot-deployment.yaml --validate=false'
+            sh 'kubectl apply -f sonarqube-deployment.yaml --validate=false'
+            sh 'kubectl wait --for=condition=ready pod -l app=mysql --timeout=120s'
+            sh 'kubectl wait --for=condition=ready pod -l app=springboot --timeout=120s'
+            sh 'kubectl wait --for=condition=ready pod -l app=sonarqube --timeout=120s'
         }
     }
 }
+
 
 
 
