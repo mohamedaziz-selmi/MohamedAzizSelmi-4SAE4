@@ -4,15 +4,16 @@ pipeline {
     environment {
         DOCKER_HUB_CREDENTIALS = 'docker-hub-creds'
         IMAGE_NAME = 'mohamedazizselmi/student-management'
-        SONAR_URL = 'http://127.0.0.1:40677'
+        // Use minikube service URL via WSL or direct IP
+        SONAR_URL = 'http://localhost:9000'
     }
 
     stages {
 
         // 1️⃣ Checkout code
-        stage('Checkout code') {
+        stage('Checkout Code') {
             steps {
-                echo "Downloading code..."
+                echo "Downloading code from Git..."
                 git branch: 'main',
                     url: 'https://github.com/fourth-git-copilot-account/MohamedAzizSelmi-4SAE4.git',
                     credentialsId: 'd53472d1-7c06-4517-893b-219f23f95bc3'
@@ -29,18 +30,18 @@ pipeline {
             }
         }
 
-        // 3️⃣ SonarQube Analysis (manual credentials)
-        stage('SonarQube Analysis') {
+        // 3️⃣ SonarQube Analysis (Manual)
+        stage('SonarQube Analysis (Manual)') {
             steps {
                 dir('student-management') {
-                    echo "Running SonarQube analysis..."
+                    echo "Running SonarQube analysis with token..."
                     withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
                         sh """
                             mvn sonar:sonar \\
                                 -Dsonar.projectKey=student-management \\
                                 -Dsonar.projectName=student-management \\
-                                -Dsonar.host.url=http://127.0.0.1:9000 \\
-                                -Dsonar.token=\$SONAR_TOKEN \\
+                                -Dsonar.host.url=$SONAR_URL \\
+                                -Dsonar.login=\$SONAR_TOKEN \\
                                 -DskipTests \\
                                 -Dsonar.java.binaries=target/classes
                         """
@@ -94,11 +95,14 @@ pipeline {
             }
         }
 
-        // 7️⃣ SonarQube Analysis (with SonarQube env)
-        stage('SonarQube Analysis') {
+        // 7️⃣ SonarQube Analysis (Using Jenkins SonarQube Environment)
+        stage('SonarQube Analysis (Env)') {
             steps {
                 withSonarQubeEnv('SonarQube') {
-                    sh 'mvn sonar:sonar'
+                    dir('student-management') {
+                        echo "Running SonarQube analysis using Jenkins environment..."
+                        sh 'mvn sonar:sonar'
+                    }
                 }
             }
         }
@@ -109,6 +113,5 @@ pipeline {
                 echo "Pipeline completed successfully!"
             }
         }
-
     }
 }
