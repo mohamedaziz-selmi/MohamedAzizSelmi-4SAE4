@@ -7,7 +7,7 @@ pipeline {
     stages {
         stage('Checkout code') {
             steps {
-                echo "Downloading code..."
+                echo "Downloading code via SSH..."
                 git branch: 'main',
                     url: 'git@github.com:fourth-git-copilot-account/MohamedAzizSelmi-4SAE4.git'
             }
