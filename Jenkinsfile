@@ -90,6 +90,14 @@ mvn sonar:sonar \\
             }
         }
 
+        stage('SonarQube Analysis') {
+    steps {
+        withSonarQubeEnv('SonarQube') {
+            sh 'mvn sonar:sonar'
+        }
+    }
+}
+
         stage('Done') {
             steps {
                 echo "Pipeline completed successfully!"
