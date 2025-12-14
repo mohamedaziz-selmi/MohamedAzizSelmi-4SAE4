@@ -4,12 +4,23 @@ pipeline {
     environment {
         DOCKER_HUB_CREDENTIALS = 'docker-hub-creds'
         IMAGE_NAME             = 'mohamedazizselmi/student-management'
-        MINIKUBE_IP            = '192.168.49.2'
-        SONAR_URL              = "http://${MINIKUBE_IP}:40995" // tunnel URL you confirmed
     }
 
     stages {
-        // 1️⃣ Checkout code
+        // 1️⃣ Get SonarQube URL dynamically from Minikube
+        stage('Set SonarQube URL') {
+            steps {
+                script {
+                    SONAR_URL = sh(
+                        script: "minikube service sonarqube-service --url",
+                        returnStdout: true
+                    ).trim()
+                    echo "Using SonarQube URL: ${SONAR_URL}"
+                }
+            }
+        }
+
+        // 2️⃣ Checkout code
         stage('Checkout code') {
             steps {
                 echo "Downloading code from Git..."
@@ -19,7 +30,7 @@ pipeline {
             }
         }
 
-        // 2️⃣ Maven clean & build
+        // 3️⃣ Maven clean & build
         stage('Maven Clean & Build') {
             steps {
                 dir('student-management') {
@@ -29,17 +40,16 @@ pipeline {
             }
         }
 
-        // 3️⃣ SonarQube Analysis
+        // 4️⃣ SonarQube Analysis
         stage('SonarQube Analysis') {
             steps {
                 dir('student-management') {
-                    echo "Running SonarQube analysis..."
                     withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
                         sh """
                             mvn sonar:sonar \\
                               -Dsonar.projectKey=student-management \\
                               -Dsonar.projectName=student-management \\
-                              -Dsonar.host.url=$SONAR_URL \\
+                              -Dsonar.host.url=${SONAR_URL} \\
                               -Dsonar.login=\$SONAR_TOKEN \\
                               -DskipTests \\
                               -Dsonar.java.binaries=target/classes
@@ -49,7 +59,7 @@ pipeline {
             }
         }
 
-        // 4️⃣ Build Docker image
+        // 5️⃣ Build Docker Image
         stage('Build Docker Image') {
             steps {
                 dir('student-management') {
@@ -59,7 +69,7 @@ pipeline {
             }
         }
 
-        // 5️⃣ Push Docker image to Docker Hub
+        // 6️⃣ Push Docker Image to Docker Hub
         stage('Push Docker Image') {
             steps {
                 dir('student-management') {
@@ -78,15 +88,17 @@ pipeline {
             }
         }
 
-        // 6️⃣ Deploy to Kubernetes
+        // 7️⃣ Deploy to Kubernetes
         stage('Deploy to Kubernetes') {
             steps {
                 withCredentials([file(credentialsId: 'KUBECONFIG_CREDENTIAL', variable: 'KUBECONFIG')]) {
                     echo "Deploying MySQL, Spring Boot, and SonarQube to Kubernetes..."
                     sh 'kubectl config use-context minikube'
+
                     sh 'kubectl apply -f student-management/k8s/mysql-deployment.yaml --validate=false'
                     sh 'kubectl apply -f student-management/k8s/springboot-deployment.yaml --validate=false'
                     sh 'kubectl apply -f student-management/k8s/sonarqube-deployment.yaml --validate=false'
+
                     sh 'kubectl wait --for=condition=ready pod -l app=mysql --timeout=120s'
                     sh 'kubectl wait --for=condition=ready pod -l app=springboot --timeout=120s'
                     sh 'kubectl wait --for=condition=ready pod -l app=sonarqube --timeout=120s'
@@ -94,7 +106,7 @@ pipeline {
             }
         }
 
-        // 7️⃣ Done
+        // 8️⃣ Done
         stage('Done') {
             steps {
                 echo "Pipeline completed successfully!"
