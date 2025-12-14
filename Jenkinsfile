@@ -10,7 +10,7 @@ pipeline {
                 echo "Downloading code..."
                 git branch: 'main',
                     url: 'https://github.com/fourth-git-copilot-account/MohamedAzizSelmi-4SAE4.git',
-                    credentialsId: 'github-pat'
+                    credentialsId: 'github-pat1'
             }
         }
 
