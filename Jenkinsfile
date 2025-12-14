@@ -7,7 +7,7 @@ pipeline {
     stages {
         stage('Checkout code') {
             steps {
-                echo "Downloading code via SSH..."
+                echo "Cloning repository via SSH..."
                 git branch: 'main',
                     url: 'git@github.com:fourth-git-copilot-account/MohamedAzizSelmi-4SAE4.git'
             }
@@ -70,7 +70,6 @@ pipeline {
             steps {
                 echo "Deploying to Kubernetes via WSL..."
                 dir('student-management/k8s') {
-                    // Call kubectl inside WSL
                     sh 'wsl kubectl config use-context minikube'
                     sh 'wsl kubectl apply -f mysql-deployment.yaml --validate=false'
                     sh 'wsl kubectl apply -f springboot-deployment.yaml --validate=false'
