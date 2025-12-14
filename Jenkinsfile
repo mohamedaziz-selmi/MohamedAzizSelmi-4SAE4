@@ -68,20 +68,24 @@ pipeline {
             }
         }
 
-        stage('Deploy to Kubernetes') {
-            steps {
-                echo "Deploying to Kubernetes via WSL..."
-                dir('student-management/student-management/k8s') {
-                    sh 'wsl kubectl config use-context minikube'
-                    sh 'wsl kubectl apply -f mysql-deployment.yaml --validate=false'
-                    sh 'wsl kubectl apply -f springboot-deployment.yaml --validate=false'
-                    sh 'wsl kubectl apply -f sonarqube-deployment.yaml --validate=false'
-                    sh 'wsl kubectl wait --for=condition=ready pod -l app=mysql --timeout=120s'
-                    sh 'wsl kubectl wait --for=condition=ready pod -l app=springboot --timeout=120s'
-                    sh 'wsl kubectl wait --for=condition=ready pod -l app=sonarqube --timeout=120s'
-                }
-            }
+     stage('Deploy to Kubernetes') {
+    steps {
+        dir('student-management/student-management/k8s') {
+            echo "Deploying to Kubernetes..."
+            sh """
+            kubectl config use-context minikube
+            kubectl apply -f mysql-deployment.yaml --validate=false
+            kubectl apply -f springboot-deployment.yaml --validate=false
+            kubectl apply -f sonarqube-deployment.yaml --validate=false
+
+            kubectl wait --for=condition=ready pod -l app=mysql --timeout=120s
+            kubectl wait --for=condition=ready pod -l app=springboot --timeout=120s
+            kubectl wait --for=condition=ready pod -l app=sonarqube --timeout=120s
+            """
         }
+    }
+}
+
 
         stage('Done') {
             steps {
