@@ -4,7 +4,7 @@ pipeline {
     environment {
         DOCKER_HUB_CREDENTIALS = 'docker-hub-creds'
         IMAGE_NAME             = 'mohamedazizselmi/student-management'
-        SONAR_URL              = 'http://192.168.49.2:30090' // Use Minikube IP + NodePort for SonarQube
+        SONAR_TOKEN            = credentials('sonar-token') // Jenkins secret token
     }
 
     stages {
@@ -33,15 +33,23 @@ pipeline {
             steps {
                 dir('student-management') {
                     echo "Running SonarQube analysis..."
-                    withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+                    script {
+                        // Get NodePort URL from Minikube service
+                        def sonarUrl = sh(
+                            script: "wsl minikube service sonarqube-service --url | tail -n 1",
+                            returnStdout: true
+                        ).trim()
+
+                        echo "SonarQube URL detected: ${sonarUrl}"
+
                         sh """
                             mvn sonar:sonar \\
-                              -Dsonar.projectKey=student-management \\
-                              -Dsonar.projectName=student-management \\
-                              -Dsonar.host.url=$SONAR_URL \\
-                              -Dsonar.login=\$SONAR_TOKEN \\
-                              -DskipTests \\
-                              -Dsonar.java.binaries=target/classes
+                                -Dsonar.projectKey=student-management \\
+                                -Dsonar.projectName=student-management \\
+                                -Dsonar.host.url=${sonarUrl} \\
+                                -Dsonar.login=${SONAR_TOKEN} \\
+                                -DskipTests \\
+                                -Dsonar.java.binaries=target/classes
                         """
                     }
                 }
@@ -80,16 +88,18 @@ pipeline {
         // 6️⃣ Deploy to Kubernetes
         stage('Deploy to Kubernetes') {
             steps {
-                withCredentials([file(credentialsId: 'KUBECONFIG_CREDENTIAL', variable: 'KUBECONFIG')]) {
-                    echo "Deploying MySQL, Spring Boot, and SonarQube to Kubernetes..."
-                    sh 'kubectl config use-context minikube'
-                    sh 'kubectl apply -f student-management/k8s/mysql-deployment.yaml --validate=false'
-                    sh 'kubectl apply -f student-management/k8s/springboot-deployment.yaml --validate=false'
-                    sh 'kubectl apply -f student-management/k8s/sonarqube-deployment.yaml --validate=false'
-                    sh 'kubectl wait --for=condition=ready pod -l app=mysql --timeout=120s'
-                    sh 'kubectl wait --for=condition=ready pod -l app=springboot --timeout=120s'
-                    sh 'kubectl wait --for=condition=ready pod -l app=sonarqube --timeout=120s'
-                }
+                echo "Deploying MySQL, Spring Boot, and SonarQube to Kubernetes..."
+                sh '''
+                    wsl kubectl config use-context minikube
+
+                    wsl kubectl apply -f student-management/k8s/mysql-deployment.yaml --validate=false
+                    wsl kubectl apply -f student-management/k8s/springboot-deployment.yaml --validate=false
+                    wsl kubectl apply -f student-management/k8s/sonarqube-deployment.yaml --validate=false
+
+                    wsl kubectl wait --for=condition=ready pod -l app=mysql --timeout=120s
+                    wsl kubectl wait --for=condition=ready pod -l app=springboot --timeout=120s
+                    wsl kubectl wait --for=condition=ready pod -l app=sonarqube --timeout=120s
+                '''
             }
         }
 
