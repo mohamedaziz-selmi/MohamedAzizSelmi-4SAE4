@@ -71,7 +71,7 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 echo "Deploying to Kubernetes via WSL..."
-                dir('student-management/k8s') {
+                dir('student-management/student-management/k8s') {
                     sh 'wsl kubectl config use-context minikube'
                     sh 'wsl kubectl apply -f mysql-deployment.yaml --validate=false'
                     sh 'wsl kubectl apply -f springboot-deployment.yaml --validate=false'
