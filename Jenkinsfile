@@ -23,24 +23,25 @@ pipeline {
             }
         }
 
-        stage('SonarQube Analysis') {
-            steps {
-                dir('student-management') {
-                    echo "Running SonarQube analysis..."
-                    withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
-                        sh """
-                        mvn sonar:sonar \
-                            -Dsonar.projectKey=student-management \
-                            -Dsonar.projectName=student-management \
-                            -Dsonar.host.url=${SONAR_URL} \
-                            -Dsonar.login=\$SONAR_TOKEN \
-                            -DskipTests \
-                            -Dsonar.java.binaries=target/classes
-                        """
-                    }
-                }
+      stage('SonarQube Analysis') {
+    steps {
+        dir('student-management/student-management') {
+            withCredentials([string(credentialsId: 'SONAR_TOKEN', variable: 'SONAR_TOKEN')]) {
+                echo "Running SonarQube analysis..."
+                sh """
+                    mvn sonar:sonar \
+                    -Dsonar.projectKey=student-management \
+                    -Dsonar.projectName=student-management \
+                    -Dsonar.host.url=http://192.168.49.2:31666 \
+                    -Dsonar.login=$SONAR_TOKEN \
+                    -DskipTests \
+                    -Dsonar.java.binaries=target/classes
+                """
             }
         }
+    }
+}
+
 
         stage('Build Docker Image') {
             steps {
