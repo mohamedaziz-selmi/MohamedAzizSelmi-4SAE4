@@ -4,7 +4,7 @@ pipeline {
     environment {
         DOCKER_HUB_CREDENTIALS = 'docker-hub-creds'
         IMAGE_NAME = 'mohamedazizselmi/student-management'
-        SONAR_URL = 'http://127.0.0.1:40995' // Minikube tunnel URL for SonarQube
+        SONAR_URL = 'http://127.0.0.1:40677'
     }
 
     stages {
@@ -12,7 +12,7 @@ pipeline {
         // 1️⃣ Checkout code
         stage('Checkout code') {
             steps {
-                echo "Downloading code from Git..."
+                echo "Downloading code..."
                 git branch: 'main',
                     url: 'https://github.com/fourth-git-copilot-account/MohamedAzizSelmi-4SAE4.git',
                     credentialsId: 'd53472d1-7c06-4517-893b-219f23f95bc3'
@@ -23,13 +23,13 @@ pipeline {
         stage('Maven Clean & Build') {
             steps {
                 dir('student-management') {
-                    echo "Running Maven clean and build..."
+                    echo "Cleaning and building Maven project..."
                     sh 'mvn clean install -DskipTests'
                 }
             }
         }
 
-        // 3️⃣ SonarQube Analysis
+        // 3️⃣ SonarQube Analysis (manual credentials)
         stage('SonarQube Analysis') {
             steps {
                 dir('student-management') {
@@ -39,8 +39,8 @@ pipeline {
                             mvn sonar:sonar \\
                                 -Dsonar.projectKey=student-management \\
                                 -Dsonar.projectName=student-management \\
-                                -Dsonar.host.url=$SONAR_URL \\
-                                -Dsonar.login=\$SONAR_TOKEN \\
+                                -Dsonar.host.url=http://127.0.0.1:9000 \\
+                                -Dsonar.token=\$SONAR_TOKEN \\
                                 -DskipTests \\
                                 -Dsonar.java.binaries=target/classes
                         """
@@ -54,7 +54,7 @@ pipeline {
             steps {
                 dir('student-management') {
                     echo "Building Docker image..."
-                    sh "docker build -t \$IMAGE_NAME:latest ."
+                    sh 'docker build -t "$IMAGE_NAME:latest" .'
                 }
             }
         }
@@ -63,7 +63,7 @@ pipeline {
         stage('Push Docker Image') {
             steps {
                 dir('student-management') {
-                    echo "Logging into Docker Hub and pushing image..."
+                    echo "Logging in and pushing to Docker Hub..."
                     withCredentials([usernamePassword(
                         credentialsId: 'docker-hub-creds',
                         usernameVariable: 'DOCKER_USER',
@@ -71,7 +71,7 @@ pipeline {
                     )]) {
                         sh """
                             echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin
-                            docker push \$IMAGE_NAME:latest
+                            docker push "$IMAGE_NAME:latest"
                         """
                     }
                 }
@@ -82,7 +82,7 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 withCredentials([file(credentialsId: 'KUBECONFIG_CREDENTIAL', variable: 'KUBECONFIG')]) {
-                    echo "Deploying MySQL, Spring Boot, and SonarQube to Kubernetes..."
+                    echo "Deploying to Kubernetes..."
                     sh 'kubectl config use-context minikube'
                     sh 'kubectl apply -f student-management/k8s/mysql-deployment.yaml --validate=false'
                     sh 'kubectl apply -f student-management/k8s/springboot-deployment.yaml --validate=false'
@@ -94,7 +94,16 @@ pipeline {
             }
         }
 
-        // 7️⃣ Done
+        // 7️⃣ SonarQube Analysis (with SonarQube env)
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('SonarQube') {
+                    sh 'mvn sonar:sonar'
+                }
+            }
+        }
+
+        // 8️⃣ Done
         stage('Done') {
             steps {
                 echo "Pipeline completed successfully!"
