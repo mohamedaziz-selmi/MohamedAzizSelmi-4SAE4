@@ -3,6 +3,7 @@ pipeline {
     environment {
         IMAGE_NAME = 'mohamedazizselmi/student-management'
         SONAR_URL = 'http://192.168.49.2:31666'
+        GIT_SSH_COMMAND = 'ssh -i /var/lib/jenkins/.ssh/id_ed25519 -o StrictHostKeyChecking=no'
     }
     stages {
         stage('Checkout code') {
