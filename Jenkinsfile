@@ -16,7 +16,7 @@ pipeline {
 
         stage('Maven Clean & Build') {
             steps {
-                dir('student-management') {
+                dir('student-management/student-management') {
                     echo "Cleaning and building Maven project..."
                     sh 'mvn clean install -DskipTests'
                 }
