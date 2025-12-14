@@ -7,6 +7,15 @@ pipeline {
         SONAR_URL              = 'http://127.0.0.1:40995' // Minikube tunnel URL for SonarQube
     }
 
+    stage('Test Kubernetes Access') {
+    steps {
+        withCredentials([file(credentialsId: 'KUBECONFIG_CREDENTIAL', variable: 'KUBECONFIG')]) {
+            sh 'kubectl get nodes'
+            sh 'kubectl get pods'
+        }
+    }
+}
+
     stages {
         // 1️⃣ Checkout code
         stage('Checkout code') {
