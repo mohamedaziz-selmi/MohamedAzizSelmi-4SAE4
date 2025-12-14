@@ -67,19 +67,22 @@ pipeline {
         }
 
         stage('Deploy to Kubernetes') {
-            steps {
-                withCredentials([file(credentialsId: 'KUBECONFIG_CREDENTIAL', variable: 'KUBECONFIG')]) {
-                    echo "Deploying to Kubernetes..."
-                    sh 'kubectl config use-context minikube'
-                    sh 'kubectl apply -f student-management/k8s/mysql-deployment.yaml --validate=false'
-                    sh 'kubectl apply -f student-management/k8s/springboot-deployment.yaml --validate=false'
-                    sh 'kubectl apply -f student-management/k8s/sonarqube-deployment.yaml --validate=false'
-                    sh 'kubectl wait --for=condition=ready pod -l app=mysql --timeout=120s'
-                    sh 'kubectl wait --for=condition=ready pod -l app=springboot --timeout=120s'
-                    sh 'kubectl wait --for=condition=ready pod -l app=sonarqube --timeout=120s'
-                }
-            }
+    steps {
+        echo "Deploying to Kubernetes via WSL..."
+        dir('student-management/k8s') {
+            sh '''
+                wsl kubectl config use-context minikube
+                wsl kubectl apply -f mysql-deployment.yaml --validate=false
+                wsl kubectl apply -f springboot-deployment.yaml --validate=false
+                wsl kubectl apply -f sonarqube-deployment.yaml --validate=false
+                wsl kubectl wait --for=condition=ready pod -l app=mysql --timeout=120s
+                wsl kubectl wait --for=condition=ready pod -l app=springboot --timeout=120s
+                wsl kubectl wait --for=condition=ready pod -l app=sonarqube --timeout=120s
+            '''
         }
+    }
+}
+
 
         stage('Done') {
             steps {
