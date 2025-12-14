@@ -3,7 +3,6 @@ pipeline {
     environment {
         DOCKER_HUB_CREDENTIALS = 'docker-hub-creds'
         IMAGE_NAME = 'mohamedazizselmi/student-management'
-        SONAR_URL = 'http://192.168.49.2:9000' // your Minikube SonarQube service
     }
     stages {
         stage('Checkout code') {
@@ -12,6 +11,7 @@ pipeline {
                 git branch: 'main', url: 'https://github.com/fourth-git-copilot-account/MohamedAzizSelmi-4SAE4.git', credentialsId: 'd53472d1-7c06-4517-893b-219f23f95bc3'
             }
         }
+
         stage('Maven Clean & Build') {
             steps {
                 dir('student-management') {
@@ -20,6 +20,16 @@ pipeline {
                 }
             }
         }
+
+        stage('Get SonarQube URL') {
+            steps {
+                script {
+                    SONAR_URL = sh(script: "minikube service sonarqube --url", returnStdout: true).trim()
+                    echo "Detected SonarQube URL: ${SONAR_URL}"
+                }
+            }
+        }
+
         stage('SonarQube Analysis') {
             steps {
                 dir('student-management') {
@@ -27,38 +37,43 @@ pipeline {
                     withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
                         sh """
                         mvn sonar:sonar \
-                        -Dsonar.projectKey=student-management \
-                        -Dsonar.projectName=student-management \
-                        -Dsonar.host.url=$SONAR_URL \
-                        -Dsonar.login=\$SONAR_TOKEN \
-                        -DskipTests \
-                        -Dsonar.java.binaries=target/classes
+                            -Dsonar.projectKey=student-management \
+                            -Dsonar.projectName=student-management \
+                            -Dsonar.host.url=${SONAR_URL} \
+                            -Dsonar.login=\$SONAR_TOKEN \
+                            -DskipTests \
+                            -Dsonar.java.binaries=target/classes
                         """
                     }
                 }
             }
         }
+
         stage('Build Docker Image') {
             steps {
                 dir('student-management') {
                     echo "Building Docker image..."
-                    sh "docker build -t $IMAGE_NAME:latest ."
+                    sh "docker build -t \$IMAGE_NAME:latest ."
                 }
             }
         }
+
         stage('Push Docker Image') {
             steps {
                 dir('student-management') {
                     echo "Logging in and pushing to Docker Hub..."
-                    withCredentials([usernamePassword(credentialsId: "$DOCKER_HUB_CREDENTIALS", usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                        sh """
-                        echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin
-                        docker push $IMAGE_NAME:latest
-                        """
+                    withCredentials([usernamePassword(
+                        credentialsId: 'docker-hub-creds',
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    )]) {
+                        sh "echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin"
+                        sh "docker push \$IMAGE_NAME:latest"
                     }
                 }
             }
         }
+
         stage('Deploy to Kubernetes') {
             steps {
                 withCredentials([file(credentialsId: 'KUBECONFIG_CREDENTIAL', variable: 'KUBECONFIG')]) {
@@ -73,6 +88,7 @@ pipeline {
                 }
             }
         }
+
         stage('Done') {
             steps {
                 echo "Pipeline completed successfully!"
