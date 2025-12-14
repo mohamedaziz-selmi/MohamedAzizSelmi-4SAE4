@@ -8,12 +8,15 @@ pipeline {
     }
 
     stages {
+
         stage('Checkout code') {
             steps {
                 echo "Downloading code..."
-                git branch: 'main',
+                git(
+                    branch: 'main',
                     url: 'https://github.com/fourth-git-copilot-account/MohamedAzizSelmi-4SAE4.git',
                     credentialsId: 'd53472d1-7c06-4517-893b-219f23f95bc3'
+                )
             }
         }
 
@@ -32,13 +35,13 @@ pipeline {
                     echo "Running SonarQube analysis..."
                     withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
                         sh """
-                            mvn sonar:sonar \\
-                                -Dsonar.projectKey=student-management \\
-                                -Dsonar.projectName=student-management \\
-                                -Dsonar.host.url=http://127.0.0.1:9000 \\
-                                -Dsonar.token=\$SONAR_TOKEN \\
-                                -DskipTests \\
-                                -Dsonar.java.binaries=target/classes
+                            mvn sonar:sonar \
+                            -Dsonar.projectKey=student-management \
+                            -Dsonar.projectName=student-management \
+                            -Dsonar.host.url=http://127.0.0.1:9000 \
+                            -Dsonar.token=\$SONAR_TOKEN \
+                            -DskipTests \
+                            -Dsonar.java.binaries=target/classes
                         """
                     }
                 }
@@ -49,9 +52,7 @@ pipeline {
             steps {
                 dir('student-management') {
                     echo "Building Docker image..."
-                    sh """
-                        docker build -t "\$IMAGE_NAME:latest" .
-                    """
+                    sh 'docker build -t "$IMAGE_NAME:latest" .'
                 }
             }
         }
@@ -60,14 +61,16 @@ pipeline {
             steps {
                 dir('student-management') {
                     echo "Logging in and pushing to Docker Hub..."
-                    withCredentials([usernamePassword(
-                        credentialsId: 'docker-hub-creds',
-                        usernameVariable: 'DOCKER_USER',
-                        passwordVariable: 'DOCKER_PASS'
-                    )]) {
+                    withCredentials([
+                        usernamePassword(
+                            credentialsId: 'docker-hub-creds',
+                            usernameVariable: 'DOCKER_USER',
+                            passwordVariable: 'DOCKER_PASS'
+                        )
+                    ]) {
                         sh """
                             echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin
-                            docker push "\$IMAGE_NAME:latest"
+                            docker push "$IMAGE_NAME:latest"
                         """
                     }
                 }
@@ -89,7 +92,7 @@ pipeline {
             }
         }
 
-        stage('SonarQube Analysis (Final)') {
+        stage('SonarQube Analysis (Post-Deploy)') {
             steps {
                 withSonarQubeEnv('SonarQube') {
                     sh 'mvn sonar:sonar'
