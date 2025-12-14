@@ -4,6 +4,7 @@ pipeline {
         DOCKER_HUB_CREDENTIALS = 'docker-hub-creds'
         IMAGE_NAME = 'mohamedazizselmi/student-management'
         SONAR_URL = 'http://192.168.49.2:31666'
+        KUBECONFIG = '/home/jenkins/.kube/config' // Minikube kubeconfig
     }
     stages {
         stage('Checkout code') {
@@ -66,23 +67,23 @@ pipeline {
             }
         }
 
-      stage('Deploy to Kubernetes') {
-    steps {
-        dir('student-management/k8s') {
-            sh 'kubectl config use-context minikube'
-            sh 'kubectl apply -f mysql-deployment.yaml --validate=false'
-            sh 'kubectl apply -f springboot-deployment.yaml --validate=false'
-            sh 'kubectl apply -f sonarqube-deployment.yaml --validate=false'
-            sh 'kubectl wait --for=condition=ready pod -l app=mysql --timeout=120s'
-            sh 'kubectl wait --for=condition=ready pod -l app=springboot --timeout=120s'
-            sh 'kubectl wait --for=condition=ready pod -l app=sonarqube --timeout=120s'
+        stage('Deploy to Kubernetes') {
+            steps {
+                echo "Deploying to Kubernetes..."
+                dir('student-management/k8s') {
+                    // Ensure kubectl uses the Minikube config
+                    sh 'kubectl config use-context minikube'
+                    sh 'kubectl apply -f mysql-deployment.yaml --validate=false'
+                    sh 'kubectl apply -f springboot-deployment.yaml --validate=false'
+                    sh 'kubectl apply -f sonarqube-deployment.yaml --validate=false'
+
+                    // Wait for pods to be ready
+                    sh 'kubectl wait --for=condition=ready pod -l app=mysql --timeout=120s'
+                    sh 'kubectl wait --for=condition=ready pod -l app=springboot --timeout=120s'
+                    sh 'kubectl wait --for=condition=ready pod -l app=sonarqube --timeout=120s'
+                }
+            }
         }
-    }
-}
-
-
-
-
 
         stage('Done') {
             steps {
