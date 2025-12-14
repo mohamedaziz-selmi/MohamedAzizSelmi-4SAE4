@@ -2,23 +2,19 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_HUB_CREDENTIALS = 'docker-hub-creds'
-        IMAGE_NAME             = 'mohamedazizselmi/student-management'
-        SONAR_URL              = 'http://127.0.0.1:41919' // NodePort URL for SonarQube
+        DOCKER_IMAGE = 'mohamedazizselmi/student-management:latest'
+        SONAR_URL = 'http://127.0.0.1:41919'  // NodePort URL of SonarQube
     }
 
     stages {
-        // 1️⃣ Checkout code
+
         stage('Checkout code') {
             steps {
                 echo "Downloading code from Git..."
-                git branch: 'main',
-                    url: 'https://github.com/fourth-git-copilot-account/MohamedAzizSelmi-4SAE4.git',
-                    credentialsId: 'd53472d1-7c06-4517-893b-219f23f95bc3'
+                git branch: 'main', url: 'https://github.com/fourth-git-copilot-account/MohamedAzizSelmi-4SAE4.git', credentialsId: 'your-git-credentials'
             }
         }
 
-        // 2️⃣ Maven clean & build
         stage('Maven Clean & Build') {
             steps {
                 dir('student-management') {
@@ -28,7 +24,6 @@ pipeline {
             }
         }
 
-        // 3️⃣ SonarQube Analysis
         stage('SonarQube Analysis') {
             steps {
                 dir('student-management') {
@@ -40,7 +35,6 @@ pipeline {
                               -Dsonar.projectName=student-management \\
                               -Dsonar.host.url=$SONAR_URL \\
                               -Dsonar.login=\$SONAR_TOKEN \\
-                              -DskipTests \\
                               -Dsonar.java.binaries=target/classes
                         """
                     }
@@ -48,55 +42,47 @@ pipeline {
             }
         }
 
-        // 4️⃣ Build Docker image
         stage('Build Docker Image') {
             steps {
-                dir('student-management') {
-                    echo "Building Docker image..."
-                    sh "docker build -t \$IMAGE_NAME:latest ."
+                echo "Building Docker image..."
+                withCredentials([usernamePassword(credentialsId: 'docker-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh """
+                        echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin
+                        docker build -t $DOCKER_IMAGE student-management
+                    """
                 }
             }
         }
 
-        // 5️⃣ Push Docker image to Docker Hub
         stage('Push Docker Image') {
             steps {
-                dir('student-management') {
-                    echo "Logging into Docker Hub and pushing image..."
-                    withCredentials([usernamePassword(
-                        credentialsId: 'docker-hub-creds',
-                        usernameVariable: 'DOCKER_USER',
-                        passwordVariable: 'DOCKER_PASS'
-                    )]) {
-                        sh """
-                            echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin
-                            docker push \$IMAGE_NAME:latest
-                        """
-                    }
+                echo "Pushing Docker image to Docker Hub..."
+                withCredentials([usernamePassword(credentialsId: 'docker-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh """
+                        echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin
+                        docker push $DOCKER_IMAGE
+                    """
                 }
             }
         }
 
-        // 6️⃣ Deploy to Kubernetes
         stage('Deploy to Kubernetes') {
             steps {
-                withCredentials([file(credentialsId: 'KUBECONFIG_CREDENTIAL', variable: 'KUBECONFIG')]) {
-                    echo "Deploying MySQL, Spring Boot, and SonarQube to Kubernetes..."
-                    sh 'kubectl config use-context minikube'
-                    sh 'kubectl apply -f student-management/k8s/mysql-deployment.yaml --validate=false'
-                    sh 'kubectl apply -f student-management/k8s/springboot-deployment.yaml --validate=false'
-                    sh 'kubectl apply -f student-management/k8s/sonarqube-deployment.yaml --validate=false'
-                    sh 'kubectl wait --for=condition=ready pod -l app=mysql --timeout=120s'
-                    sh 'kubectl wait --for=condition=ready pod -l app=springboot --timeout=120s'
-                    sh 'kubectl wait --for=condition=ready pod -l app=sonarqube --timeout=120s'
+                echo "Deploying to Kubernetes..."
+                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')]) {
+                    sh """
+                        kubectl config use-context minikube
+                        kubectl apply -f student-management/k8s/mysql-deployment.yaml --validate=false
+                        kubectl apply -f student-management/k8s/student-management-deployment.yaml --validate=false
+                        kubectl apply -f student-management/k8s/student-management-service.yaml --validate=false
+                    """
                 }
             }
         }
 
-        // 7️⃣ Done
         stage('Done') {
             steps {
-                echo "Pipeline completed successfully!"
+                echo "Pipeline finished successfully!"
             }
         }
     }
