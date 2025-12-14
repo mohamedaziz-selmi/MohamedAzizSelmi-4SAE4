@@ -45,7 +45,7 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                dir('student-management') {
+                dir('student-management/student-management') {
                     echo "Building Docker image..."
                     sh "docker build -t \$IMAGE_NAME:latest ."
                 }
