@@ -4,7 +4,9 @@ pipeline {
     environment {
         DOCKER_HUB_CREDENTIALS = 'docker-hub-creds'
         IMAGE_NAME             = 'mohamedazizselmi/student-management'
-        SONAR_URL              = 'http://127.0.0.1:40995' // Minikube tunnel URL for SonarQube
+        // Use Minikube IP instead of localhost if Jenkins runs in Docker/VM
+        MINIKUBE_IP            = sh(script: "minikube ip", returnStdout: true).trim()
+        SONAR_URL              = "http://${MINIKUBE_IP}:9000"
     }
 
     stages {
@@ -82,13 +84,19 @@ pipeline {
             steps {
                 withCredentials([file(credentialsId: 'KUBECONFIG_CREDENTIAL', variable: 'KUBECONFIG')]) {
                     echo "Deploying MySQL, Spring Boot, and SonarQube to Kubernetes..."
-                    sh 'kubectl config use-context minikube'
+                    
+                    // Use KUBECONFIG from credentials
+                    sh 'export KUBECONFIG=$KUBECONFIG'
+                    
+                    // Apply Kubernetes YAMLs
                     sh 'kubectl apply -f student-management/k8s/mysql-deployment.yaml --validate=false'
                     sh 'kubectl apply -f student-management/k8s/springboot-deployment.yaml --validate=false'
                     sh 'kubectl apply -f student-management/k8s/sonarqube-deployment.yaml --validate=false'
-                    sh 'kubectl wait --for=condition=ready pod -l app=mysql --timeout=120s'
-                    sh 'kubectl wait --for=condition=ready pod -l app=springboot --timeout=120s'
-                    sh 'kubectl wait --for=condition=ready pod -l app=sonarqube --timeout=120s'
+
+                    // Wait for pods to be ready
+                    sh 'kubectl wait --for=condition=ready pod -l app=mysql --timeout=180s'
+                    sh 'kubectl wait --for=condition=ready pod -l app=springboot --timeout=180s'
+                    sh 'kubectl wait --for=condition=ready pod -l app=sonarqube --timeout=180s'
                 }
             }
         }
@@ -101,3 +109,4 @@ pipeline {
         }
     }
 }
+
