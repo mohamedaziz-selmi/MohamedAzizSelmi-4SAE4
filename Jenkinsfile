@@ -68,20 +68,24 @@ pipeline {
             }
         }
 
-     stage('Deploy to Kubernetes') {
-    environment {
-        KUBECONFIG = '/var/lib/jenkins/.minikube/config/config'
-    }
+    stage('Deploy to Kubernetes') {
     steps {
         echo "Deploying to Kubernetes..."
         dir('student-management/student-management/k8s') {
-            sh 'kubectl config use-context minikube'
-            sh 'kubectl apply -f mysql-deployment.yaml --validate=false'
-            sh 'kubectl apply -f springboot-deployment.yaml --validate=false'
-            sh 'kubectl apply -f sonarqube-deployment.yaml --validate=false'
-            sh 'kubectl wait --for=condition=ready pod -l app=mysql --timeout=120s'
-            sh 'kubectl wait --for=condition=ready pod -l app=springboot --timeout=120s'
-            sh 'kubectl wait --for=condition=ready pod -l app=sonarqube --timeout=120s'
+            // Make sure Jenkins uses the correct kubeconfig
+            withEnv(['KUBECONFIG=/var/lib/jenkins/.kube/config']) {
+                sh 'kubectl config use-context minikube'
+
+                // Apply your deployments
+                sh 'kubectl apply -f mysql-deployment.yaml --validate=false'
+                sh 'kubectl apply -f springboot-deployment.yaml --validate=false'
+                sh 'kubectl apply -f sonarqube-deployment.yaml --validate=false'
+
+                // Wait for pods to be ready
+                sh 'kubectl wait --for=condition=ready pod -l app=mysql --timeout=120s'
+                sh 'kubectl wait --for=condition=ready pod -l app=springboot --timeout=120s'
+                sh 'kubectl wait --for=condition=ready pod -l app=sonarqube --timeout=120s'
+            }
         }
     }
 }
