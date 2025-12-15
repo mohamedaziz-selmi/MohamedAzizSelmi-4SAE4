@@ -1,27 +1,53 @@
 pipeline {
     agent any
     environment {
-        IMAGE_NAME = 'mohamedazizselmi/student-management'
-        SONAR_URL = 'http://192.168.49.2:31666'
-        KUBECONFIG = '/var/lib/jenkins/.kube/config'
+        IMAGE_NAME      = 'mohamedazizselmi/student-management'
+        DOCKER_TAG      = "${env.BUILD_NUMBER}"
+        DEPLOYMENT_NAME = 'studentmang-app'
+        NAMESPACE       = 'default'
+        KUBECONFIG      = '/var/lib/jenkins/.kube/config'
+        SONAR_PORT      = '9000'
     }
     stages {
-
-        stage('Clean & Start Minikube') {
+        stage('Setup SonarQube Port Forward') {
             steps {
-                echo "Cleaning old Minikube cluster and starting a new one..."
+                script {
+                    sh "pkill -f 'port-forward.*sonarqube' || true"
+                    sh """
+                        nohup kubectl port-forward svc/sonarqube -n ${NAMESPACE} 9000:9000 > /tmp/sonar-pf.log 2>&1 &
+                        echo \$! > /tmp/sonar-pf.pid
+                        sleep 5
+                    """
+                    env.SONAR_URL = "http://localhost:9000"
+                    echo "SonarQube URL: ${env.SONAR_URL}"
+
+                    sh """
+                    for i in {1..10}; do
+                        if curl -f --max-time 5 ${env.SONAR_URL}/api/system/status 2>/dev/null; then
+                            echo "SonarQube reachable!"
+                            exit 0
+                        fi
+                        echo "Attempt \$i failed, retrying..."
+                        sleep 2
+                    done
+                    echo "WARNING: Cannot reach SonarQube"
+                    """
+                }
+            }
+        }
+
+        stage('Verify Kubernetes') {
+            steps {
                 sh '''
-                    minikube delete || true
-                    minikube start --driver=docker --base-image=kicbase/stable:v0.0.48
-                    mkdir -p $(dirname $KUBECONFIG)
-                    export KUBECONFIG=$KUBECONFIG
+                echo "Minikube status:"; minikube status
+                echo "Current context:"; kubectl config current-context
+                echo "Cluster info:"; kubectl cluster-info
                 '''
             }
         }
 
-        stage('Checkout Code via SSH') {
+        stage('Checkout') {
             steps {
-                echo "Cloning repository via SSH..."
                 sh '''
                     rm -rf student-management
                     git clone -b main git@github.com:fourth-git-copilot-account/MohamedAzizSelmi-4SAE4.git student-management
@@ -29,10 +55,9 @@ pipeline {
             }
         }
 
-        stage('Maven Clean & Build') {
+        stage('Maven Build') {
             steps {
                 dir('student-management/student-management') {
-                    echo "Cleaning and building Maven project..."
                     sh 'mvn clean install -DskipTests'
                 }
             }
@@ -42,12 +67,11 @@ pipeline {
             steps {
                 dir('student-management/student-management') {
                     withCredentials([string(credentialsId: 'sonarqube-token', variable: 'SONAR_TOKEN')]) {
-                        echo "Running SonarQube analysis..."
                         sh """
-                            mvn sonar:sonar \
+                        mvn sonar:sonar \
                             -Dsonar.projectKey=student-management \
                             -Dsonar.projectName=student-management \
-                            -Dsonar.host.url=$SONAR_URL \
+                            -Dsonar.host.url=${env.SONAR_URL} \
                             -Dsonar.login=$SONAR_TOKEN \
                             -DskipTests \
                             -Dsonar.java.binaries=target/classes
@@ -57,26 +81,16 @@ pipeline {
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Docker Build & Push') {
             steps {
                 dir('student-management/student-management') {
-                    echo "Building Docker image..."
-                    sh "docker build -t $IMAGE_NAME:latest ."
-                }
-            }
-        }
-
-        stage('Push Docker Image') {
-            steps {
-                dir('student-management/student-management') {
-                    echo "Logging in and pushing Docker image..."
-                    withCredentials([usernamePassword(
-                        credentialsId: 'docker-hub-creds',
-                        usernameVariable: 'DOCKER_USER',
-                        passwordVariable: 'DOCKER_PASS'
-                    )]) {
-                        sh "echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin"
-                        sh "docker push $IMAGE_NAME:latest"
+                    withCredentials([usernamePassword(credentialsId: 'docker-hub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                        sh """
+                        docker build -t ${IMAGE_NAME}:${DOCKER_TAG} -t ${IMAGE_NAME}:latest .
+                        echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin
+                        docker push ${IMAGE_NAME}:${DOCKER_TAG}
+                        docker push ${IMAGE_NAME}:latest
+                        """
                     }
                 }
             }
@@ -85,28 +99,36 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 dir('student-management/student-management/k8s') {
-                    echo "Deploying all Kubernetes manifests..."
-                    sh 'ls -l'  // confirm YAMLs exist
                     withEnv(["KUBECONFIG=$KUBECONFIG"]) {
                         sh '''
-                            for f in *.yaml; do
-                                echo "Applying $f..."
-                                kubectl apply -f "$f" --validate=false
-                            done
+                        for f in *.yaml; do
+                            echo "Applying $f..."
+                            kubectl apply -f "$f" --validate=false
+                        done
 
-                            for label in mysql springboot sonarqube; do
-                                kubectl wait --for=condition=ready pod -l app=$label --timeout=180s || true
-                            done
+                        for label in mysql springboot sonarqube; do
+                            kubectl wait --for=condition=ready pod -l app=$label --timeout=180s || true
+                        done
+                        kubectl get pods -n ${NAMESPACE}
                         '''
                     }
                 }
             }
         }
+    }
 
-        stage('Done') {
-            steps {
-                echo "Pipeline completed successfully!"
-            }
+    post {
+        success {
+            echo "✅ Pipeline completed successfully!"
+            sh "echo SonarQube URL: ${env.SONAR_URL}/dashboard?id=student-management"
+        }
+        failure {
+            echo "❌ Pipeline failed!"
+            sh '''
+            echo "=== Minikube Status ==="; minikube status || true
+            echo "=== Kubectl Context ==="; kubectl config current-context || true
+            echo "=== Cluster Info ==="; kubectl cluster-info || true
+            '''
         }
     }
 }
