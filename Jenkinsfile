@@ -43,15 +43,21 @@ pipeline {
             }
         }
 
-        stage('Deploy SonarQube to Minikube') {
-            steps {
-                echo "Deploying SonarQube on Minikube..."
-                dir('student-management/sonarqube-k8s') {
-                    sh 'kubectl apply -f . --validate=false'
-                    sh 'kubectl wait --for=condition=ready pod -l app=sonarqube --timeout=180s'
-                }
+stage('Deploy SonarQube to Minikube') {
+    steps {
+        echo "Deploying SonarQube on Minikube..."
+        dir('student-management/sonarqube-k8s') {
+            withEnv(['KUBECONFIG=/var/lib/jenkins/.kube/config']) {
+                sh """
+                    kubectl apply -f sonarqube-deployment.yaml --validate=false
+                    kubectl apply -f sonarqube-service.yaml --validate=false
+                    # Wait for SonarQube pod to be ready
+                    kubectl wait --for=condition=ready pod -l app=sonarqube --timeout=180s
+                """
             }
         }
+    }
+}
 
         stage('SonarQube Analysis') {
             steps {
