@@ -7,23 +7,24 @@ pipeline {
     stages {
 
         stage('Clean & Start Minikube') {
-            steps {
-                echo "Cleaning old Minikube cluster and starting a new one..."
-                sh """
-                    # Delete any existing Minikube cluster
-                    minikube delete || true
+    steps {
+        echo "Cleaning old Minikube cluster and starting a new one..."
+        sh """
+            # Delete any existing Minikube cluster
+            minikube delete || true
 
-                    # Start Minikube with Docker driver
-                    minikube start --driver=docker --base-image=kicbase/stable:v0.0.48
+            # Start Minikube with Docker driver
+            minikube start --driver=docker --base-image=kicbase/stable:v0.0.48
 
-                    # Ensure kubeconfig directory exists for Jenkins user
-                    mkdir -p /var/lib/jenkins/.kube
-                    cp ~/.kube/config /var/lib/jenkins/.kube/config
-                    chown -R jenkins:jenkins /var/lib/jenkins/.kube
-                    export KUBECONFIG=/var/lib/jenkins/.kube/config
-                """
-            }
-        }
+            # Ensure kubeconfig directory exists for Jenkins user
+            mkdir -p /var/lib/jenkins/.kube
+
+            # Set environment variable for kubectl
+            export KUBECONFIG=/var/lib/jenkins/.kube/config
+        """
+    }
+}
+
 
         stage('Checkout code via SSH') {
             steps {
