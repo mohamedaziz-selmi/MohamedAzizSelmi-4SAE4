@@ -27,20 +27,27 @@ pipeline {
     steps {
         dir('student-management/student-management') {
             withCredentials([string(credentialsId: 'sonarqube-token', variable: 'SONAR_TOKEN')]) {
-                echo "Running SonarQube analysis..."
-                sh """
+
+                sh '''
+                    MINIKUBE_IP=$(minikube ip)
+                    SONAR_PORT=$(kubectl get svc sonarqube -o jsonpath="{.spec.ports[0].nodePort}")
+                    SONAR_URL="http://$MINIKUBE_IP:$SONAR_PORT"
+
+                    echo "Detected SonarQube URL: $SONAR_URL"
+
                     mvn sonar:sonar \
-                    -Dsonar.projectKey=student-management \
-                    -Dsonar.projectName=student-management \
-                    -Dsonar.host.url=http://192.168.49.2:31666 \
-                    -Dsonar.login=$SONAR_TOKEN \
-                    -DskipTests \
-                    -Dsonar.java.binaries=target/classes
-                """
+                      -Dsonar.projectKey=student-management \
+                      -Dsonar.projectName=student-management \
+                      -Dsonar.host.url=$SONAR_URL \
+                      -Dsonar.login=$SONAR_TOKEN \
+                      -DskipTests \
+                      -Dsonar.java.binaries=target/classes
+                '''
             }
         }
     }
 }
+
 
 
         stage('Build Docker Image') {
