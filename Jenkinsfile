@@ -5,7 +5,6 @@ pipeline {
         SONAR_URL = 'http://192.168.49.2:31666'
     }
     stages {
-
         stage('Checkout code via SSH') {
             steps {
                 echo "Cleaning old folder and cloning repository via SSH..."
@@ -13,7 +12,6 @@ pipeline {
                 sh 'git clone -b main git@github.com:fourth-git-copilot-account/MohamedAzizSelmi-4SAE4.git student-management'
             }
         }
-
         stage('Maven Clean & Build') {
             steps {
                 dir('student-management/student-management') {
@@ -22,36 +20,32 @@ pipeline {
                 }
             }
         }
-
-      stage('SonarQube Analysis') {
-    steps {
-        dir('student-management/student-management') {
-            withCredentials([string(credentialsId: 'sonarqube-token', variable: 'SONAR_TOKEN')]) {
-                echo "Running SonarQube analysis..."
-                sh """
-                    mvn sonar:sonar \
-                    -Dsonar.projectKey=student-management \
-                    -Dsonar.projectName=student-management \
-                    -Dsonar.host.url=http://192.168.49.2:31666 \
-                    -Dsonar.login=$SONAR_TOKEN \
-                    -DskipTests \
-                    -Dsonar.java.binaries=target/classes
-                """
+        stage('SonarQube Analysis') {
+            steps {
+                dir('student-management/student-management') {
+                    withCredentials([string(credentialsId: 'sonarqube-token', variable: 'SONAR_TOKEN')]) {
+                        echo "Running SonarQube analysis..."
+                        sh '''
+                            mvn sonar:sonar \
+                            -Dsonar.projectKey=student-management \
+                            -Dsonar.projectName=student-management \
+                            -Dsonar.host.url=${SONAR_URL} \
+                            -Dsonar.login=${SONAR_TOKEN} \
+                            -DskipTests \
+                            -Dsonar.java.binaries=target/classes
+                        '''
+                    }
+                }
             }
         }
-    }
-}
-
-
         stage('Build Docker Image') {
             steps {
                 dir('student-management/student-management') {
                     echo "Building Docker image..."
-                    sh "docker build -t \$IMAGE_NAME:latest ."
+                    sh 'docker build -t ${IMAGE_NAME}:latest .'
                 }
             }
         }
-
         stage('Push Docker Image') {
             steps {
                 dir('student-management/student-management') {
@@ -61,37 +55,28 @@ pipeline {
                         usernameVariable: 'DOCKER_USER',
                         passwordVariable: 'DOCKER_PASS'
                     )]) {
-                        sh "echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin"
-                        sh "docker push \$IMAGE_NAME:latest"
+                        sh 'echo ${DOCKER_PASS} | docker login -u ${DOCKER_USER} --password-stdin'
+                        sh 'docker push ${IMAGE_NAME}:latest'
                     }
                 }
             }
         }
-
-    stage('Deploy to Kubernetes') {
-    steps {
-        echo "Deploying to Kubernetes..."
-        dir('student-management/student-management/k8s') {
-            // Make sure Jenkins uses the correct kubeconfig
-            withEnv(['KUBECONFIG=/var/lib/jenkins/.kube/config']) {
-                sh 'kubectl config use-context minikube'
-
-                // Apply your deployments
-                sh 'kubectl apply -f mysql-deployment.yaml --validate=false'
-                sh 'kubectl apply -f springboot-deployment.yaml --validate=false'
-                sh 'kubectl apply -f sonarqube-deployment.yaml --validate=false'
-
-                // Wait for pods to be ready
-                sh 'kubectl wait --for=condition=ready pod -l app=mysql --timeout=120s'
-                sh 'kubectl wait --for=condition=ready pod -l app=springboot --timeout=120s'
-                sh 'kubectl wait --for=condition=ready pod -l app=sonarqube --timeout=120s'
+        stage('Deploy to Kubernetes') {
+            steps {
+                echo "Deploying to Kubernetes..."
+                dir('student-management/student-management/k8s') {
+                    withEnv(['KUBECONFIG=/var/lib/jenkins/.kube/config']) {
+                        sh 'kubectl config use-context minikube'
+                        sh 'kubectl apply -f mysql-deployment.yaml --validate=false'
+                        sh 'kubectl apply -f springboot-deployment.yaml --validate=false'
+                        sh 'kubectl apply -f sonarqube-deployment.yaml --validate=false'
+                        sh 'kubectl wait --for=condition=ready pod -l app=mysql --timeout=120s'
+                        sh 'kubectl wait --for=condition=ready pod -l app=springboot --timeout=120s'
+                        sh 'kubectl wait --for=condition=ready pod -l app=sonarqube --timeout=120s'
+                    }
+                }
             }
         }
-    }
-}
-
-
-
         stage('Done') {
             steps {
                 echo "Pipeline completed successfully!"
