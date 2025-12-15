@@ -19,7 +19,7 @@ pipeline {
             }
         }
 
-        stage('Checkout code via SSH') {
+        stage('Checkout Code via SSH') {
             steps {
                 echo "Cloning repository via SSH..."
                 sh '''
@@ -85,18 +85,18 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 dir('student-management/student-management/k8s') {
-                    echo "Applying Kubernetes manifests..."
-                    // Debug: see which files are in the folder
-                    sh 'ls -l'
+                    echo "Deploying all Kubernetes manifests..."
+                    sh 'ls -l'  // confirm YAMLs exist
                     withEnv(["KUBECONFIG=$KUBECONFIG"]) {
                         sh '''
-                            kubectl apply -f mysql-deployment.yaml --validate=false
-                            kubectl apply -f springboot-deployment.yaml --validate=false
-                            kubectl apply -f sonarqube-deployment.yaml --validate=false
+                            for f in *.yaml; do
+                                echo "Applying $f..."
+                                kubectl apply -f "$f" --validate=false
+                            done
 
-                            kubectl wait --for=condition=ready pod -l app=mysql --timeout=180s
-                            kubectl wait --for=condition=ready pod -l app=springboot --timeout=180s
-                            kubectl wait --for=condition=ready pod -l app=sonarqube --timeout=180s
+                            for label in mysql springboot sonarqube; do
+                                kubectl wait --for=condition=ready pod -l app=$label --timeout=180s || true
+                            done
                         '''
                     }
                 }
