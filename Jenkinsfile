@@ -2,19 +2,27 @@ pipeline {
     agent any
     environment {
         IMAGE_NAME = 'mohamedazizselmi/student-management'
-        SONAR_URL = 'http://192.168.49.2:31666'
+        SONAR_URL = 'http://localhost:9000'
     }
     stages {
-        stage('Checkout code via SSH') {
+        stage('Checkout Code') {
             steps {
-                echo "Cleaning old folder and cloning repository via SSH..."
-                sh 'rm -rf student-management'
-                sh 'git clone -b main git@github.com:fourth-git-copilot-account/MohamedAzizSelmi-4SAE4.git student-management'
+                script {
+                    echo "📦 Cloning repository from GitHub..."
+                    sh 'rm -rf student-management'
+                    
+                    // Use HTTPS with token
+                    git url: 'https://github.com/fourth-git-copilot-account/MohamedAzizSelmi-4SAE4.git',
+                        branch: 'main',
+                        credentialsId: 'github-https-token'
+                        
+                    echo "✅ Repository cloned successfully"
+                }
             }
         }
         stage('Maven Clean & Build') {
             steps {
-                dir('student-management/student-management') {
+                dir('student-management') {  // Changed from student-management/student-management
                     echo "Cleaning and building Maven project..."
                     sh 'mvn clean install -DskipTests'
                 }
@@ -22,7 +30,7 @@ pipeline {
         }
         stage('SonarQube Analysis') {
             steps {
-                dir('student-management/student-management') {
+                dir('student-management') {  // Changed here too
                     withCredentials([string(credentialsId: 'sonarqube-token', variable: 'SONAR_TOKEN')]) {
                         echo "Running SonarQube analysis..."
                         sh '''
@@ -40,7 +48,7 @@ pipeline {
         }
         stage('Build Docker Image') {
             steps {
-                dir('student-management/student-management') {
+                dir('student-management') {  // Changed here too
                     echo "Building Docker image..."
                     sh 'docker build -t ${IMAGE_NAME}:latest .'
                 }
@@ -48,7 +56,7 @@ pipeline {
         }
         stage('Push Docker Image') {
             steps {
-                dir('student-management/student-management') {
+                dir('student-management') {  // Changed here too
                     echo "Logging in and pushing to Docker Hub..."
                     withCredentials([usernamePassword(
                         credentialsId: 'docker-hub-creds',
@@ -64,15 +72,13 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 echo "Deploying to Kubernetes..."
-                dir('student-management/student-management/k8s') {
+                dir('student-management/k8s') {  // Changed here too
                     withEnv(['KUBECONFIG=/var/lib/jenkins/.kube/config']) {
                         sh 'kubectl config use-context minikube'
                         sh 'kubectl apply -f mysql-deployment.yaml --validate=false'
                         sh 'kubectl apply -f springboot-deployment.yaml --validate=false'
-                        sh 'kubectl apply -f sonarqube-deployment.yaml --validate=false'
                         sh 'kubectl wait --for=condition=ready pod -l app=mysql --timeout=120s'
                         sh 'kubectl wait --for=condition=ready pod -l app=springboot --timeout=120s'
-                        sh 'kubectl wait --for=condition=ready pod -l app=sonarqube --timeout=120s'
                     }
                 }
             }
