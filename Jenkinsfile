@@ -70,19 +70,31 @@ pipeline {
             }
         }
         stage('Deploy to Kubernetes') {
-            steps {
-                echo "Deploying to Kubernetes..."
-                dir('student-management/k8s') {  // Changed here too
-                    withEnv(['KUBECONFIG=/var/lib/jenkins/.kube/config']) {
-                        sh 'kubectl config use-context minikube'
-                        sh 'kubectl apply -f mysql-deployment.yaml --validate=false'
-                        sh 'kubectl apply -f springboot-deployment.yaml --validate=false'
-                        sh 'kubectl wait --for=condition=ready pod -l app=mysql --timeout=120s'
-                        sh 'kubectl wait --for=condition=ready pod -l app=springboot --timeout=120s'
-                    }
-                }
+    steps {
+        echo "Deploying to Kubernetes..."
+        dir('student-management/k8s') {
+            withEnv(['KUBECONFIG=/var/lib/jenkins/.kube/config']) {
+                sh 'kubectl config use-context minikube'
+                
+                // Deploy MySQL secret and PVC
+                sh 'kubectl apply -f mysql-secret.yaml --validate=false'
+                sh 'kubectl apply -f mysql-pvc.yaml --validate=false'
+                
+                // Deploy MySQL deployment and service
+                sh 'kubectl apply -f mysql-deployment.yaml --validate=false'
+                sh 'kubectl apply -f mysql-service.yaml --validate=false'
+                
+                // Deploy SpringBoot deployment and service
+                sh 'kubectl apply -f springboot-deployment.yaml --validate=false'
+                sh 'kubectl apply -f springboot-service.yaml --validate=false'
+                
+                // Wait for pods to be ready
+                sh 'kubectl wait --for=condition=ready pod -l app=mysql --timeout=180s'
+                sh 'kubectl wait --for=condition=ready pod -l app=springboot --timeout=300s'
             }
         }
+    }
+}
         stage('Done') {
             steps {
                 echo "Pipeline completed successfully!"
