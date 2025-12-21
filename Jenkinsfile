@@ -55,20 +55,31 @@ pipeline {
             }
         }
         stage('Push Docker Image') {
-            steps {
-                dir('student-management') {
-                    echo "Logging in and pushing to Docker Hub..."
-                    withCredentials([usernamePassword(
-                        credentialsId: 'docker-hub-creds',
-                        usernameVariable: 'DOCKER_USER',
-                        passwordVariable: 'DOCKER_PASS'
-                    )]) {
-                        sh 'echo ${DOCKER_PASS} | docker login -u ${DOCKER_USER} --password-stdin'
-                        sh 'docker push ${IMAGE_NAME}:latest'
+    steps {
+        dir('student-management') {
+            echo "Pushing to Docker Hub..."
+            withCredentials([usernamePassword(
+                credentialsId: 'docker-hub-creds',
+                usernameVariable: 'DOCKER_USER',
+                passwordVariable: 'DOCKER_PASS'
+            )]) {
+                script {
+                    try {
+                        timeout(time: 2, unit: 'MINUTES') {
+                            sh 'echo ${DOCKER_PASS} | docker login -u ${DOCKER_USER} --password-stdin'
+                            sh 'docker push ${IMAGE_NAME}:latest'
+                            echo "✅ Pushed to Docker Hub"
+                        }
+                    } catch (Exception e) {
+                        echo "⚠️ Docker Hub push failed, loading into Minikube instead..."
+                        sh 'minikube image load ${IMAGE_NAME}:latest'
+                        echo "✅ Image loaded into Minikube"
                     }
                 }
             }
         }
+    }
+}
         stage('Deploy to Kubernetes') {
             steps {
                 echo "Deploying to Kubernetes..."
